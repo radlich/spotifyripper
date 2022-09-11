@@ -34,19 +34,19 @@ pactl move-sink-input $spotify spotify
 $script_dir/notify.sh | while read line
 do
   if [[ $line == "__SWITCH__" ]]; then
-    killall oggenc 2>/dev/null
+    killall lame 2>/dev/null
     killall parec 2>/dev/null
 
     if [[ -n $title ]]; then
-      vorbiscomment -a tmp.ogg -t "ARTIST=$artist" -t "ALBUM=$album"\
-          -t "TITLE=$title" -t "tracknumber=$tracknumber"
+      mid3v2 -a "$artist" -A "$album"\
+          -t "$title" -T "$tracknumber" tmp.mp3
       # Sanitize filenames
       saveto="$musicdir/${artist//\/ /}/${album//\/ /}"
-      echo "Saved song $title by $artist to $saveto/${title//\/ /}.ogg"
+      echo "Saved song $title by $artist to $saveto/${title//\/ /}.mp3"
       if [[ ! -a $saveto ]]; then
         mkdir -p "$saveto"
       fi
-      mv tmp.ogg "$saveto/${title//\/ /}.ogg"
+      mv tmp.mp3 "$saveto/${title//\/ /}.mp3"
       if [[ -s cover.jpg ]] && [[ ! -a "$saveto/cover.jpg" ]]; then
         mv cover.jpg "$saveto/cover.jpg"
       fi
@@ -57,9 +57,9 @@ do
       rm -f cover.jpg
     fi
     echo "RECORDING"
-    parec -d spotify.monitor | oggenc -b 192 -o tmp.ogg --raw - 2>/dev/null\
+    parec -d spotify.monitor | lame -r -s44.1 - "tmp.mp3" 2>/dev/null\
       &disown
-    trap 'pactl move-sink-input $spotify $pasink && killall oggenc && killall parec' EXIT
+    trap 'pactl move-sink-input $spotify $pasink && killall lame && killall parec' EXIT
 
   else
     variant=$(echo "$line"|cut -d= -f1)
@@ -75,7 +75,7 @@ do
       echo "Album = $string"
     elif [[ $variant == "url" ]]; then
       # Get the track number and download the coverart using an outside script
-      tracknumber=$(`$script_dir/trackify.sh` "$string")
+      tracknumber=$(`$script_dir/trackify.sh` "$string" 2>/dev/null)
       echo "Track number = $tracknumber"
     fi
   fi
